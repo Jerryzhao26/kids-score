@@ -6,23 +6,15 @@
     <title>小勇士积分成长系统</title>
     <style>
         :root { --primary: #4CAF50; --danger: #f44336; --warn: #ff9800; --accent: #2196F3; --bg: #f0f2f5; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 10px; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 10px; }
         .container { max-width: 800px; margin: auto; }
         .header-card { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 15px; }
         .balance { font-size: 36px; font-weight: bold; margin: 5px 0; }
-        .stats-card { background: white; padding: 12px; border-radius: 12px; margin-bottom: 15px; }
-        .chart { display: flex; align-items: flex-end; height: 70px; gap: 6px; margin-top: 10px; }
-        .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; }
-        .bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
         .card { background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; }
-        .item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border: 1px solid #eee; cursor: pointer; border-radius: 8px; margin-bottom: 6px; font-size: 14px; }
+        .item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; font-size: 14px; cursor: pointer; }
         .active-reward { background-color: #e8f5e9; border-color: var(--primary); }
         .active-penalty { background-color: #ffebee; border-color: var(--danger); }
-        .category-title { font-size: 12px; color: #888; margin: 5px 0; border-left: 3px solid var(--accent); padding-left: 8px; }
-        .sync-box { background: #333; color: white; padding: 15px; border-radius: 12px; margin-top: 15px; }
-        button { border: none; border-radius: 6px; padding: 10px; cursor: pointer; font-weight: bold; }
+        .category-title { font-size: 12px; color: #888; margin: 10px 0 5px 0; border-left: 3px solid var(--accent); padding-left: 8px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -30,197 +22,91 @@
     <div class="header-card">
         <div style="font-size: 13px; opacity: 0.8;">可用积分总额</div>
         <div class="balance" id="totalBalance">0</div>
-        <div id="weekInfo" style="font-size: 12px; background:rgba(255,255,255,0.2); display:inline-block; padding:2px 8px; border-radius:10px;">本周累计: 0</div>
+        <div id="dateDisplay" style="font-size: 12px; opacity: 0.9;">今日: 2026-03-06</div>
     </div>
 
-    <div class="stats-card">
-        <div style="display:flex; justify-content:space-between; font-size:12px; color:#666;">
-            <span>最近7日表现趋势</span><span id="todayLabel" style="color:var(--accent); font-weight:bold;">今日: 0</span>
-        </div>
-        <div id="statChart" class="chart"></div>
+    <div class="card">
+        <h4 style="color:var(--primary); margin:0 0 10px 0;">🌟 奖励项</h4>
+        <div id="rewardList"></div>
+    </div>
+    <div class="card">
+        <h4 style="color:var(--danger); margin:0 0 10px 0;">⚠️ 扣分项</h4>
+        <div id="penaltyList"></div>
     </div>
 
-    <div class="grid">
-        <div class="card">
-            <h4 style="color:var(--primary); margin:0 0 10px 0;">🌟 奖励项</h4>
-            <div id="rewardList"></div>
-        </div>
-        <div class="card">
-            <h4 style="color:var(--danger); margin:0 0 10px 0;">⚠️ 扣分项</h4>
-            <div id="penaltyList"></div>
-            <button onclick="liarPenalty()" style="width:100%; background:none; border:1px dashed red; color:red; margin-top:10px; font-size:12px;">🚫 撒谎处罚 (本周清零)</button>
-        </div>
-    </div>
-
-    <div class="sync-box">
-        <div style="font-size: 13px; margin-bottom: 10px;">☁️ iCloud 数据同步</div>
-        <div style="display:flex; gap:10px;">
-            <button onclick="exportData()" style="flex:1; background:var(--primary); color:white;">备份数据</button>
-            <button onclick="document.getElementById('f').click()" style="flex:1; background:var(--accent); color:white;">读取数据</button>
-            <input type="file" id="f" style="display:none" onchange="importData(event)">
-        </div>
+    <div style="text-align:center; padding: 20px;">
+        <button onclick="exportData()" style="padding:10px 20px; border-radius:8px; border:none; background:#333; color:white;">备份数据到 iCloud</button>
     </div>
 </div>
 
 <script>
-    // 严格按照图片内容设置任务与分值
     var config = {
         rewards: [
-            {cat: "生活习惯", items: [
-                {id:'r1', n:"早上按时起床洗漱", p:1},
-                {id:'r2', n:"认真吃饭不拖拉", p:1},
-                {id:'r3', n:"洗澡不拖拉", p:1},
-                {id:'r4', n:"9点半之前睡觉", p:1}
-            ]},
-            {cat: "学习习惯", items: [
-                {id:'r5', n:"及时主动完成学习任务", p:2},
-                {id:'r6', n:"及时整理桌面，书包", p:2},
-                {id:'r7', n:"作业认真思考，字迹工整", p:2},
-                {id:'r8', n:"认真规范做题", p:3}
-            ]},
-            {cat: "学习成果", items: [
-                {id:'r9', n:"测试每科95分以上", p:10},
-                {id:'r10', n:"老师表扬", p:5},
-                {id:'r11', n:"获得奖状一张", p:5}
-            ]},
-            {cat: "劳动品行", items: [
-                {id:'r12', n:"整理房间", p:1},
-                {id:'r13', n:"整理衣服", p:1},
-                {id:'r14', n:"收碗放入洗碗机", p:1}
-            ]}
+            {cat: "生活习惯", items: [{id:'r1', n:"早上按时起床洗漱", p:1}, {id:'r2', n:"认真吃饭不拖拉", p:1}, {id:'r3', n:"洗澡不拖拉", p:1}, {id:'r4', n:"9点半之前睡觉", p:1}]},
+            {cat: "学习习惯", items: [{id:'r5', n:"及时主动完成学习任务", p:2}, {id:'r6', n:"及时整理桌面，书包", p:2}, {id:'r7', n:"作业认真思考，字迹工整", p:2}, {id:'r8', n:"认真规范做题", p:3}]},
+            {cat: "学习成果", items: [{id:'r9', n:"测试每科95分以上", p:10}, {id:'r10', n:"老师表扬", p:5}, {id:'r11', n:"获得奖状一张", p:5}]},
+            {cat: "劳动品行", items: [{id:'r12', n:"整理房间", p:1}, {id:'r13', n:"整理衣服", p:1}, {id:'r14', n:"收碗放入洗碗机", p:1}]}
         ],
         penalties: [
-            {cat: "生活习惯", items: [
-                {id:'p1', n:"起床拖拉迟到", p:-2},
-                {id:'p2', n:"吃饭拖拉", p:-1},
-                {id:'p3', n:"不讲卫生", p:-1},
-                {id:'p4', n:"10点之后睡觉", p:-2}
-            ]},
-            {cat: "学习习惯", items: [
-                {id:'p5', n:"作业拖拉不专心", p:-2},
-                {id:'p6', n:"作业自己潦草", p:-1},
-                {id:'p7', n:"同样的错题反复出现", p:-1}
-            ]},
-            {cat: "学习成果", items: [
-                {id:'p8', n:"测试每科80分以下", p:-10},
-                {id:'p9', n:"被老师告状批评", p:-3}
-            ]},
-            {cat: "劳动品行", items: [
-                {id:'p10', n:"物品混乱不收拾", p:-2},
-                {id:'p11', n:"说脏话", p:-20}
-            ]}
+            {cat: "生活习惯", items: [{id:'p1', n:"起床拖拉迟到", p:-2}, {id:'p2', n:"吃饭拖拉", p:-1}, {id:'p3', n:"不讲卫生", p:-1}, {id:'p4', n:"10点之后睡觉", p:-2}]},
+            {cat: "学习习惯", items: [{id:'p5', n:"作业拖拉不专心", p:-2}, {id:'p6', n:"作业自己潦草", p:-1}, {id:'p7', n:"同样的错题反复出现", p:-1}]},
+            {cat: "学习成果", items: [{id:'p8', n:"测试每科80分以下", p:-10}, {id:'p9', n:"被老师告状批评", p:-3}]},
+            {cat: "劳动品行", items: [{id:'p10', n:"物品混乱不收拾", p:-2}, {id:'p11', n:"说脏话", p:-20}]}
         ]
     };
 
-    var store = JSON.parse(localStorage.getItem('kid_growth_db')) || { balance: 0, daily: {}, clicks: {} };
+    var store = JSON.parse(localStorage.getItem('kid_growth_db')) || { balance: 0, lastDate: '', clicks: [] };
 
-    function save() {
-        localStorage.setItem('kid_growth_db', JSON.stringify(store));
-        refresh();
-    }
-
-    function toggle(id, p) {
+    // 自动重置逻辑
+    function checkDate() {
         var today = new Date().toISOString().split('T')[0];
-        if(!store.clicks[today]) store.clicks[today] = [];
-        var idx = store.clicks[today].indexOf(id);
-        
-        if(idx > -1) {
-            store.balance -= p;
-            store.daily[today] = (store.daily[today] || 0) - p;
-            store.clicks[today].splice(idx, 1);
-        } else {
-            store.balance += p;
-            store.daily[today] = (store.daily[today] || 0) + p;
-            store.clicks[today].push(id);
-        }
-        save();
-    }
-
-    function refresh() {
-        var today = new Date().toISOString().split('T')[0];
-        document.getElementById('totalBalance').innerText = store.balance;
-        document.getElementById('todayLabel').innerText = "今日: " + (store.daily[today] || 0);
-
-        // 渲染奖励列表
-        var rHtml = '';
-        config.rewards.forEach(function(cat){
-            rHtml += '<div class="category-title">' + cat.cat + '</div>';
-            cat.items.forEach(function(item){
-                var active = (store.clicks[today]||[]).indexOf(item.id) > -1 ? 'active-reward' : '';
-                rHtml += '<div class="item '+active+'" onclick="toggle(\''+item.id+'\','+item.p+')"><span>'+(active?'✅ ':'')+item.n+'</span><b style="color:green">+'+item.p+'</b></div>';
-            });
-        });
-        document.getElementById('rewardList').innerHTML = rHtml;
-
-        // 渲染扣分列表
-        var pHtml = '';
-        config.penalties.forEach(function(cat){
-            pHtml += '<div class="category-title">' + cat.cat + '</div>';
-            cat.items.forEach(function(item){
-                var active = (store.clicks[today]||[]).indexOf(item.id) > -1 ? 'active-penalty' : '';
-                pHtml += '<div class="item '+active+'" onclick="toggle(\''+item.id+'\','+item.p+')"><span>'+(active?'⚠️ ':'')+item.n+'</span><b style="color:red">'+item.p+'</b></div>';
-            });
-        });
-        document.getElementById('penaltyList').innerHTML = pHtml;
-
-        // 图表及本周统计
-        var cHtml = '';
-        var weekSum = 0;
-        var curr = new Date();
-        var monday = new Date(curr.setDate(curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1)));
-        
-        for(var i=0; i<7; i++) {
-            var d = new Date(new Date(monday).setDate(monday.getDate() + i)).toISOString().split('T')[0];
-            weekSum += (store.daily[d] || 0);
-        }
-        document.getElementById('weekInfo').innerText = "本周累计: " + weekSum;
-
-        for(var j=6; j>=0; j--) {
-            var dt = new Date(); dt.setDate(dt.getDate()-j);
-            var ds = dt.toISOString().split('T')[0];
-            var v = store.daily[ds] || 0;
-            var h = Math.min(Math.max(Math.abs(v)*2, 2), 60);
-            cHtml += '<div class="bar-wrap"><div style="font-size:9px;">'+v+'</div><div class="bar" style="height:'+h+'px; background:'+(v>=0?'#2196F3':'#f44336')+'"></div><div style="font-size:8px; color:#999;">'+ds.substring(8)+'</div></div>';
-        }
-        document.getElementById('statChart').innerHTML = cHtml;
-    }
-
-    function exportData() {
-        var blob = new Blob([JSON.stringify(store)], {type:'application/json'});
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'growth_data_sync.json';
-        a.click();
-    }
-
-    function importData(e) {
-        var reader = new FileReader();
-        reader.onload = function(evt) {
-            try {
-                store = JSON.parse(evt.target.result);
-                save();
-                location.reload();
-            } catch(err) { alert("文件无效"); }
-        };
-        reader.readAsText(e.target.files[0]);
-    }
-
-    function liarPenalty() {
-        if(confirm("确定执行‘撤谎’处罚？本周所有得分将从总余额中扣除。")) {
-            var curr = new Date();
-            var monday = new Date(curr.setDate(curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1)));
-            for(var i=0; i<7; i++) {
-                var d = new Date(new Date(monday).setDate(monday.getDate() + i)).toISOString().split('T')[0];
-                if(store.daily[d] > 0) {
-                    store.balance -= store.daily[d];
-                    store.daily[d] = 0;
-                    store.clicks[d] = [];
-                }
-            }
+        if (store.lastDate !== today) {
+            store.clicks = []; // 清空当日选中状态
+            store.lastDate = today;
             save();
         }
     }
 
+    function toggle(id, p) {
+        var idx = store.clicks.indexOf(id);
+        if(idx > -1) {
+            store.balance -= p;
+            store.clicks.splice(idx, 1);
+        } else {
+            store.balance += p;
+            store.clicks.push(id);
+        }
+        save();
+    }
+
+    function save() { localStorage.setItem('kid_growth_db', JSON.stringify(store)); refresh(); }
+
+    function refresh() {
+        document.getElementById('totalBalance').innerText = store.balance;
+        document.getElementById('dateDisplay').innerText = "今日: " + store.lastDate;
+
+        renderList('rewardList', config.rewards, 'active-reward', '✅');
+        renderList('penaltyList', config.penalties, 'active-penalty', '⚠️');
+    }
+
+    function renderList(containerId, list, activeClass, icon) {
+        var box = document.getElementById(containerId);
+        box.innerHTML = '';
+        list.forEach(function(cat){
+            box.innerHTML += '<div class="category-title">'+cat.cat+'</div>';
+            cat.items.forEach(function(item){
+                var active = store.clicks.indexOf(item.id) > -1 ? activeClass : '';
+                box.innerHTML += '<div class="item '+active+'" onclick="toggle(\''+item.id+'\','+item.p+')"><span>'+(active?icon+' ':'')+item.n+'</span><b>'+(item.p>0?'+':'')+item.p+'</b></div>';
+            });
+        });
+    }
+
+    function exportData() {
+        var blob = new Blob([JSON.stringify(store)], {type:'application/json'});
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'growth_data_sync.json'; a.click();
+    }
+
+    checkDate();
     refresh();
 </script>
 </body>
