@@ -11,6 +11,9 @@
         .header-card { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 15px; }
         .balance { font-size: 36px; font-weight: bold; margin: 5px 0; }
         .card { background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; }
+        .chart { display: flex; align-items: flex-end; height: 70px; gap: 6px; margin-top: 10px; }
+        .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; }
+        .bar { width: 100%; border-radius: 3px 3px 0 0; }
         .item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; font-size: 14px; cursor: pointer; }
         .active-reward { background-color: #e8f5e9; border-color: var(--primary); }
         .active-penalty { background-color: #ffebee; border-color: var(--danger); }
@@ -26,6 +29,11 @@
         <div style="font-size: 13px; opacity: 0.8;">可用积分总额</div>
         <div class="balance" id="totalBalance">0</div>
         <div id="dateDisplay" style="font-size: 12px; opacity: 0.9;">今日: 2026-03-06</div>
+    </div>
+
+    <div class="card">
+        <div style="font-size: 12px; color:#666;">最近7日表现趋势</div>
+        <div id="statChart" class="chart"></div>
     </div>
 
     <div class="card">
@@ -67,13 +75,13 @@
         ],
         penalties: [
             {cat: "生活习惯", items: [{id:'p1', n:"起床拖拉迟到", p:-2}, {id:'p2', n:"吃饭拖拉", p:-1}, {id:'p3', n:"不讲卫生", p:-1}, {id:'p4', n:"10点之后睡觉", p:-2}]},
-            {cat: "学习习惯", items: [{id:'p5', n:"作业拖拉不专心", p:-2}, {id:'p6', n:"作业字迹潦草", p:-1}, {id:'p7', n:"同样的错题反复出现", p:-1}]},
+            {cat: "学习习惯", items: [{id:'p5', n:"作业拖拉不专心", p:-2}, {id:'p6', n:"作业自己潦草", p:-1}, {id:'p7', n:"同样的错题反复出现", p:-1}]},
             {cat: "学习成果", items: [{id:'p8', n:"测试每科80分以下", p:-10}, {id:'p9', n:"被老师告状批评", p:-3}]},
             {cat: "劳动品行", items: [{id:'p10', n:"物品混乱不收拾", p:-2}, {id:'p11', n:"说脏话", p:-20}]}
         ]
     };
 
-    var store = JSON.parse(localStorage.getItem('kid_growth_db')) || { balance: 0, lastDate: '', clicks: [] };
+    var store = JSON.parse(localStorage.getItem('kid_growth_db')) || { balance: 0, lastDate: '', clicks: [], daily: {} };
 
     function liarPenalty() {
         if(confirm("确定执行撒谎处罚？本周得分将重置。")) {
@@ -85,19 +93,22 @@
 
     function redeem(cost, limit) {
         if (store.balance >= cost) {
-            if (confirm("确定兑换 " + limit + " 元以内的愿望吗？")) {
-                store.balance -= cost;
-                save();
-            }
-        } else {
-            alert("积分不足！");
-        }
+            if (confirm("确定兑换 " + limit + " 元以内的愿望吗？")) { store.balance -= cost; save(); }
+        } else { alert("积分不足！"); }
     }
 
     function toggle(id, p) {
+        var today = new Date().toISOString().split('T')[0];
         var idx = store.clicks.indexOf(id);
-        if(idx > -1) { store.balance -= p; store.clicks.splice(idx, 1); } 
-        else { store.balance += p; store.clicks.push(id); }
+        if(idx > -1) { 
+            store.balance -= p; 
+            store.daily[today] -= p;
+            store.clicks.splice(idx, 1); 
+        } else { 
+            store.balance += p; 
+            store.daily[today] = (store.daily[today] || 0) + p;
+            store.clicks.push(id); 
+        }
         save();
     }
 
@@ -113,11 +124,11 @@
         document.getElementById('dateDisplay').innerText = "今日: " + store.lastDate;
         renderList('rewardList', config.rewards, 'active-reward', '✅');
         renderList('penaltyList', config.penalties, 'active-penalty', '⚠️');
+        renderChart();
     }
 
     function renderList(containerId, list, activeClass, icon) {
-        var box = document.getElementById(containerId);
-        box.innerHTML = '';
+        var box = document.getElementById(containerId); box.innerHTML = '';
         list.forEach(function(cat){
             box.innerHTML += '<div class="category-title">'+cat.cat+'</div>';
             cat.items.forEach(function(item){
@@ -125,6 +136,18 @@
                 box.innerHTML += '<div class="item '+active+'" onclick="toggle(\''+item.id+'\','+item.p+')"><span>'+(active?icon+' ':'')+item.n+'</span><b>'+(item.p>0?'+':'')+item.p+'</b></div>';
             });
         });
+    }
+
+    function renderChart() {
+        var cHtml = '';
+        for(var i=6; i>=0; i--) {
+            var dt = new Date(); dt.setDate(dt.getDate()-i);
+            var ds = dt.toISOString().split('T')[0];
+            var v = store.daily[ds] || 0;
+            var h = Math.min(Math.max(Math.abs(v)*2, 2), 60);
+            cHtml += '<div class="bar-wrap"><div style="font-size:9px;">'+v+'</div><div class="bar" style="height:'+h+'px; background:'+(v>=0?'#2196F3':'#f44336')+'"></div><div style="font-size:8px; color:#999;">'+ds.substring(8)+'</div></div>';
+        }
+        document.getElementById('statChart').innerHTML = cHtml;
     }
 
     function exportData() {
