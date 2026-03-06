@@ -84,9 +84,10 @@
     var store = JSON.parse(localStorage.getItem('kid_growth_db')) || { balance: 0, lastDate: '', clicks: [], daily: {} };
 
     function liarPenalty() {
-        if(confirm("确定执行撒谎处罚？本周得分将重置。")) {
+        if(confirm("确定执行撒谎处罚？将从总余额扣除50分，并清理今日记录。")) {
             store.balance = Math.max(0, store.balance - 50); 
             store.clicks = [];
+            store.daily[new Date().toISOString().split('T')[0]] = 0;
             save();
         }
     }
@@ -102,7 +103,7 @@
         var idx = store.clicks.indexOf(id);
         if(idx > -1) { 
             store.balance -= p; 
-            store.daily[today] -= p;
+            store.daily[today] = (store.daily[today] || 0) - p;
             store.clicks.splice(idx, 1); 
         } else { 
             store.balance += p; 
