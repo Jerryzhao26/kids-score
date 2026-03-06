@@ -3,54 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>小勇士成长系统</title>
+    <title>小勇士全能系统</title>
     <style>
-        /* 强制 Safari 适配 */
-        body { font-family: -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
-        .item { padding: 16px; border: 1px solid #ccc; margin: 8px 0; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; }
-        .btn { padding: 12px; margin: 5px; cursor: pointer; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; margin: 0; padding: 10px; touch-action: manipulation; }
+        .card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; }
+        .section-title { font-size: 14px; font-weight: bold; color: #444; margin: 20px 5px 10px 5px; border-left: 4px solid #2196F3; padding-left: 8px; }
+        .item { padding: 14px; border: 1px solid #eee; margin: 4px 0; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: white; }
+        .active-plus { background-color: #e8f5e9; border-color: #4CAF50; }
+        .active-minus { background-color: #ffebee; border-color: #f44336; }
+        .trend-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; font-size: 13px; }
     </style>
 </head>
 <body>
-    <div id="app">
-        <h1 id="totalBalance" onclick="adjustBalance()">0</h1>
-        <div id="listArea"></div>
+<div style="max-width: 800px; margin: auto;">
+    <div class="card" onclick="adjustBalance()" style="background: #1e3c72; color: white;">
+        <div style="font-size: 12px;">总积分 (点击调整)</div>
+        <div id="totalBalance" style="font-size: 32px; font-weight: bold;">0</div>
     </div>
+    <div class="card">
+        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">最近7日积分记录</div>
+        <div id="trendArea"></div>
+    </div>
+    
+    <div class="section-title">🌟 奖励项</div>
+    <div id="plusArea"></div>
+    <div class="section-title">⚠️ 扣分项</div>
+    <div id="minusArea"></div>
+
+    <button style="width:100%; padding:15px; border:1px dashed red; color:red; border-radius:8px; margin:20px 0;" onclick="liarPenalty()">🚫 撒谎处罚 (本周清零/负分加罚)</button>
+    
+    <div style="display:flex; gap:10px;">
+        <button style="flex:1; padding:10px;" onclick="exportData()">备份数据</button>
+        <button style="flex:1; padding:10px;" onclick="document.getElementById('f').click()">读取数据</button>
+        <input type="file" id="f" style="display:none" onchange="importData(event)">
+    </div>
+</div>
 
 <script>
-    // 定义数据结构
-    var store = JSON.parse(localStorage.getItem('kid_growth_db') || '{"balance":0, "clicks":[], "daily":{}}');
+    var items = [
+        {id:'a1', n:"早上按时起床洗漱", p:1}, {id:'a2', n:"认真吃饭不拖拉", p:1}, {id:'a3', n:"洗澡不拖拉", p:1}, {id:'a4', n:"9点半之前睡觉", p:1},
+        {id:'a5', n:"及时主动完成学习任务", p:2}, {id:'a6', n:"及时整理桌面书包", p:2}, {id:'a7', n:"作业认真思考字迹工整", p:2}, {id:'a8', n:"认真规范做题", p:3},
+        {id:'a9', n:"测试每科95分以上", p:10}, {id:'a10', n:"老师表扬", p:5}, {id:'a11', n:"获得奖状一张", p:5},
+        {id:'a12', n:"整理房间", p:1}, {id:'a13', n:"整理衣服", p:1}, {id:'a14', n:"收碗放入洗碗机", p:1},
+        {id:'b1', n:"起床拖拉迟到", p:-2}, {id:'b2', n:"吃饭拖拉", p:-1}, {id:'b3', n:"不讲卫生", p:-1}, {id:'b4', n:"10点之后睡觉", p:-2},
+        {id:'b5', n:"作业拖拉不专心", p:-2}, {id:'b6', n:"作业自己潦草", p:-1}, {id:'b7', n:"同样的错题反复出现", p:-1},
+        {id:'b8', n:"测试每科80分以下", p:-10}, {id:'b9', n:"被老师告状批评", p:-3},
+        {id:'b10', n:"物品混乱不收拾", p:-2}, {id:'b11', n:"说脏话", p:-20}
+    ];
 
-    function save() {
-        localStorage.setItem('kid_growth_db', JSON.stringify(store));
-        render();
-    }
+    var store = JSON.parse(localStorage.getItem('kid_db') || '{"balance":0, "clicks":[], "daily":{}, "weekTotal":0}');
 
     function render() {
-        document.getElementById('totalBalance').innerText = "当前积分: " + store.balance;
-        var list = document.getElementById('listArea');
-        list.innerHTML = '';
+        document.getElementById('totalBalance').innerText = store.balance;
         
-        // 渲染测试按钮（仅测试点击功能）
-        var btn = document.createElement('div');
-        btn.className = 'item';
-        btn.innerText = "测试点击加1分";
-        btn.onclick = function() {
-            store.balance += 1;
-            save();
-        };
-        list.appendChild(btn);
-    }
-
-    function adjustBalance() {
-        var pwd = prompt("请输入密码：");
-        if (pwd === "jerry215") {
-            var val = prompt("输入新积分：");
-            if (val) { store.balance = parseInt(val); save(); }
+        // 渲染趋势列表
+        var trendArea = document.getElementById('trendArea'); trendArea.innerHTML = '';
+        for(let i=0; i<7; i++) {
+            let d = new Date(); d.setDate(d.getDate()-i);
+            let s = d.toISOString().split('T')[0];
+            trendArea.innerHTML += '<div class="trend-row"><span>'+s.substring(5)+'</span><b>'+(store.daily[s]||0)+'分</b></div>';
         }
+
+        // 渲染加减分项
+        var pArea = document.getElementById('plusArea'), mArea = document.getElementById('minusArea');
+        pArea.innerHTML = ''; mArea.innerHTML = '';
+        
+        items.forEach(item => {
+            var div = document.createElement('div');
+            let isPlus = item.p > 0;
+            div.className = 'item' + (store.clicks.includes(item.id) ? (isPlus ? ' active-plus' : ' active-minus') : '');
+            div.innerHTML = '<span>'+item.n+'</span><b>'+(isPlus?'+':'')+item.p+'</b>';
+            div.addEventListener('click', function() {
+                let today = new Date().toISOString().split('T')[0];
+                if(store.clicks.includes(item.id)) {
+                    store.balance -= item.p; store.weekTotal -= item.p;
+                    store.daily[today] = (store.daily[today] || 0) - item.p;
+                    store.clicks = store.clicks.filter(i => i !== item.id);
+                } else {
+                    store.balance += item.p; store.weekTotal += item.p;
+                    store.daily[today] = (store.daily[today] || 0) + item.p;
+                    store.clicks.push(item.id);
+                }
+                save();
+            });
+            (isPlus ? pArea : mArea).appendChild(div);
+        });
     }
 
-    // 初始渲染
+    function save() { localStorage.setItem('kid_db', JSON.stringify(store)); render(); }
+    function liarPenalty() { if(confirm("执行撒谎处罚?")) { store.balance -= (store.weekTotal >= 0 ? store.weekTotal : 30); store.weekTotal = 0; store.clicks = []; save(); } }
+    function adjustBalance() { if(prompt("密码:") === "jerry215") { let v = prompt("新余额:"); if(v) { store.balance = parseInt(v); save(); } } }
+    function exportData() { let b = new Blob([JSON.stringify(store)]); let a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'db.json'; a.click(); }
+    function importData(e) { let r = new FileReader(); r.onload = (evt) => { store = JSON.parse(evt.target.result); save(); location.reload(); }; r.readAsText(e.target.files[0]); }
+
     render();
 </script>
 </body>
