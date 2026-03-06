@@ -8,7 +8,7 @@
         :root { --primary: #4CAF50; --danger: #f44336; --warn: #ff9800; --accent: #2196F3; --bg: #f0f2f5; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 10px; }
         .container { max-width: 800px; margin: auto; }
-        .header-card { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 15px; }
+        .header-card { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 15px; cursor: pointer; }
         .balance { font-size: 36px; font-weight: bold; margin: 5px 0; }
         .card { background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; }
         .chart { display: flex; align-items: flex-end; height: 70px; gap: 6px; margin-top: 10px; }
@@ -25,8 +25,8 @@
 </head>
 <body>
 <div class="container">
-    <div class="header-card">
-        <div style="font-size: 13px; opacity: 0.8;">可用积分总额</div>
+    <div class="header-card" onclick="adjustBalance()">
+        <div style="font-size: 13px; opacity: 0.8;">可用积分总额 (点击修改)</div>
         <div class="balance" id="totalBalance">0</div>
         <div id="dateDisplay" style="font-size: 12px; opacity: 0.9;">今日: 2026-03-06</div>
     </div>
@@ -82,6 +82,20 @@
     };
 
     var store = JSON.parse(localStorage.getItem('kid_growth_db')) || { balance: 0, lastDate: '', clicks: [], daily: {} };
+
+    // 余额调整功能
+    function adjustBalance() {
+        var pwd = prompt("请输入管理员密码：");
+        if (pwd === "jerry215") {
+            var newBalance = prompt("当前余额为 " + store.balance + "，请输入新的积分总额：");
+            if (newBalance !== null && !isNaN(newBalance)) {
+                store.balance = parseInt(newBalance);
+                save();
+            }
+        } else if (pwd !== null) {
+            alert("密码错误！");
+        }
+    }
 
     function liarPenalty() {
         if(confirm("确定执行撒谎处罚？将从总余额扣除50分，并清理今日记录。")) {
