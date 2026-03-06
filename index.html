@@ -12,6 +12,8 @@
         .balance { font-size: 36px; font-weight: bold; margin: 5px 0; }
         .card { background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; }
         .item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; font-size: 14px; cursor: pointer; }
+        .active-reward { background-color: #e8f5e9; border-color: var(--primary); }
+        .active-penalty { background-color: #ffebee; border-color: var(--danger); }
         .category-title { font-size: 12px; color: #888; margin: 10px 0 5px 0; border-left: 3px solid var(--accent); padding-left: 8px; font-weight: bold; }
         .shop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
         .shop-btn { background: #fff8e1; border: 1px solid #ffe082; padding: 10px 5px; border-radius: 8px; text-align: center; font-size: 12px; cursor: pointer; }
@@ -46,8 +48,12 @@
         <button class="btn-danger-outline" onclick="liarPenalty()">🚫 撒谎处罚 (清空本周累计得分)</button>
     </div>
 
-    <div style="text-align:center; padding: 20px;">
-        <button onclick="exportData()" style="padding:10px 20px; border-radius:8px; border:none; background:#333; color:white;">备份数据到 iCloud</button>
+    <div style="padding: 20px 0;">
+        <div style="display:flex; gap:10px;">
+            <button onclick="exportData()" style="flex:1; padding:12px; border-radius:8px; border:none; background:#333; color:white;">备份数据</button>
+            <button onclick="document.getElementById('f').click()" style="flex:1; padding:12px; border-radius:8px; border:none; background:#2196F3; color:white;">读取数据</button>
+            <input type="file" id="f" style="display:none" onchange="importData(event)">
+        </div>
     </div>
 </div>
 
@@ -61,19 +67,17 @@
         ],
         penalties: [
             {cat: "生活习惯", items: [{id:'p1', n:"起床拖拉迟到", p:-2}, {id:'p2', n:"吃饭拖拉", p:-1}, {id:'p3', n:"不讲卫生", p:-1}, {id:'p4', n:"10点之后睡觉", p:-2}]},
-            {cat: "学习习惯", items: [{id:'p5', n:"作业拖拉不专心", p:-2}, {id:'p6', n:"作业字迹潦草", p:-1}, {id:'p7', n:"同样的错题反复出现", p:-1}]},
+            {cat: "学习习惯", items: [{id:'p5', n:"作业拖拉不专心", p:-2}, {id:'p6', n:"作业自己潦草", p:-1}, {id:'p7', n:"同样的错题反复出现", p:-1}]},
             {cat: "学习成果", items: [{id:'p8', n:"测试每科80分以下", p:-10}, {id:'p9', n:"被老师告状批评", p:-3}]},
             {cat: "劳动品行", items: [{id:'p10', n:"物品混乱不收拾", p:-2}, {id:'p11', n:"说脏话", p:-20}]}
         ]
     };
 
-    var store = JSON.parse(localStorage.getItem('kid_growth_db')) || { balance: 0, lastDate: '', clicks: [], dailyHistory: {} };
+    var store = JSON.parse(localStorage.getItem('kid_growth_db')) || { balance: 0, lastDate: '', clicks: [] };
 
-    // 撒谎清零逻辑（不仅清总余额，还清理历史记录）
     function liarPenalty() {
-        if(confirm("确定执行撒谎处罚？将从总余额扣除本周得分并重置本周记录。")) {
-            // 这里为了简单，直接重置余额并清空当日记录
-            store.balance = Math.max(0, store.balance - 50); // 假设撒谎额外扣除50作为惩罚
+        if(confirm("确定执行撒谎处罚？本周得分将重置。")) {
+            store.balance = Math.max(0, store.balance - 50); 
             store.clicks = [];
             save();
         }
@@ -81,12 +85,12 @@
 
     function redeem(cost, limit) {
         if (store.balance >= cost) {
-            if (confirm("确定兑换 " + limit + " 元以内的愿望吗？（将扣除 " + cost + " 积分）")) {
+            if (confirm("确定兑换 " + limit + " 元以内的愿望吗？")) {
                 store.balance -= cost;
                 save();
             }
         } else {
-            alert("积分不足，加油继续攒分吧！");
+            alert("积分不足！");
         }
     }
 
@@ -126,6 +130,15 @@
     function exportData() {
         var blob = new Blob([JSON.stringify(store)], {type:'application/json'});
         var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'growth_data_sync.json'; a.click();
+    }
+
+    function importData(e) {
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+            try { store = JSON.parse(evt.target.result); save(); location.reload(); } 
+            catch(err) { alert("文件格式错误"); }
+        };
+        reader.readAsText(e.target.files[0]);
     }
 
     checkDate();
