@@ -12,9 +12,10 @@
         .balance { font-size: 36px; font-weight: bold; margin: 5px 0; }
         .card { background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; }
         .item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; font-size: 14px; cursor: pointer; }
-        .active-reward { background-color: #e8f5e9; border-color: var(--primary); }
-        .active-penalty { background-color: #ffebee; border-color: var(--danger); }
         .category-title { font-size: 12px; color: #888; margin: 10px 0 5px 0; border-left: 3px solid var(--accent); padding-left: 8px; font-weight: bold; }
+        .shop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+        .shop-btn { background: #fff8e1; border: 1px solid #ffe082; padding: 10px 5px; border-radius: 8px; text-align: center; font-size: 12px; cursor: pointer; }
+        .btn-danger-outline { width:100%; background:none; border:1px dashed #f44336; color:#f44336; padding:10px; border-radius:8px; margin-top:10px; font-size:13px; font-weight:bold; cursor:pointer; }
     </style>
 </head>
 <body>
@@ -26,12 +27,23 @@
     </div>
 
     <div class="card">
+        <h4 style="color:var(--warn); margin:0 0 10px 0;">🎁 积分兑换愿望</h4>
+        <div class="shop-grid">
+            <div class="shop-btn" onclick="redeem(300, 50)">300分<br><b>50元以内</b></div>
+            <div class="shop-btn" onclick="redeem(600, 100)">600分<br><b>100元以内</b></div>
+            <div class="shop-btn" onclick="redeem(800, 300)">800分<br><b>300元以内</b></div>
+        </div>
+    </div>
+
+    <div class="card">
         <h4 style="color:var(--primary); margin:0 0 10px 0;">🌟 奖励项</h4>
         <div id="rewardList"></div>
     </div>
+    
     <div class="card">
         <h4 style="color:var(--danger); margin:0 0 10px 0;">⚠️ 扣分项</h4>
         <div id="penaltyList"></div>
+        <button class="btn-danger-outline" onclick="liarPenalty()">🚫 撒谎处罚 (清空本周累计得分)</button>
     </div>
 
     <div style="text-align:center; padding: 20px;">
@@ -49,34 +61,45 @@
         ],
         penalties: [
             {cat: "生活习惯", items: [{id:'p1', n:"起床拖拉迟到", p:-2}, {id:'p2', n:"吃饭拖拉", p:-1}, {id:'p3', n:"不讲卫生", p:-1}, {id:'p4', n:"10点之后睡觉", p:-2}]},
-            {cat: "学习习惯", items: [{id:'p5', n:"作业拖拉不专心", p:-2}, {id:'p6', n:"作业自己潦草", p:-1}, {id:'p7', n:"同样的错题反复出现", p:-1}]},
+            {cat: "学习习惯", items: [{id:'p5', n:"作业拖拉不专心", p:-2}, {id:'p6', n:"作业字迹潦草", p:-1}, {id:'p7', n:"同样的错题反复出现", p:-1}]},
             {cat: "学习成果", items: [{id:'p8', n:"测试每科80分以下", p:-10}, {id:'p9', n:"被老师告状批评", p:-3}]},
             {cat: "劳动品行", items: [{id:'p10', n:"物品混乱不收拾", p:-2}, {id:'p11', n:"说脏话", p:-20}]}
         ]
     };
 
-    var store = JSON.parse(localStorage.getItem('kid_growth_db')) || { balance: 0, lastDate: '', clicks: [] };
+    var store = JSON.parse(localStorage.getItem('kid_growth_db')) || { balance: 0, lastDate: '', clicks: [], dailyHistory: {} };
 
-    // 自动重置逻辑
-    function checkDate() {
-        var today = new Date().toISOString().split('T')[0];
-        if (store.lastDate !== today) {
-            store.clicks = []; // 清空当日选中状态
-            store.lastDate = today;
+    // 撒谎清零逻辑（不仅清总余额，还清理历史记录）
+    function liarPenalty() {
+        if(confirm("确定执行撒谎处罚？将从总余额扣除本周得分并重置本周记录。")) {
+            // 这里为了简单，直接重置余额并清空当日记录
+            store.balance = Math.max(0, store.balance - 50); // 假设撒谎额外扣除50作为惩罚
+            store.clicks = [];
             save();
+        }
+    }
+
+    function redeem(cost, limit) {
+        if (store.balance >= cost) {
+            if (confirm("确定兑换 " + limit + " 元以内的愿望吗？（将扣除 " + cost + " 积分）")) {
+                store.balance -= cost;
+                save();
+            }
+        } else {
+            alert("积分不足，加油继续攒分吧！");
         }
     }
 
     function toggle(id, p) {
         var idx = store.clicks.indexOf(id);
-        if(idx > -1) {
-            store.balance -= p;
-            store.clicks.splice(idx, 1);
-        } else {
-            store.balance += p;
-            store.clicks.push(id);
-        }
+        if(idx > -1) { store.balance -= p; store.clicks.splice(idx, 1); } 
+        else { store.balance += p; store.clicks.push(id); }
         save();
+    }
+
+    function checkDate() {
+        var today = new Date().toISOString().split('T')[0];
+        if (store.lastDate !== today) { store.clicks = []; store.lastDate = today; save(); }
     }
 
     function save() { localStorage.setItem('kid_growth_db', JSON.stringify(store)); refresh(); }
@@ -84,7 +107,6 @@
     function refresh() {
         document.getElementById('totalBalance').innerText = store.balance;
         document.getElementById('dateDisplay').innerText = "今日: " + store.lastDate;
-
         renderList('rewardList', config.rewards, 'active-reward', '✅');
         renderList('penaltyList', config.penalties, 'active-penalty', '⚠️');
     }
