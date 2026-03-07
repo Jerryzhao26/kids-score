@@ -11,8 +11,10 @@
         .item { padding: 14px; border: 1px solid #eee; margin: 4px 0; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: white; }
         .active-plus { background-color: #e8f5e9; border-color: #4CAF50; }
         .active-minus { background-color: #ffebee; border-color: #f44336; }
-        .sync-status { font-size: 10px; text-align: center; color: #999; margin-top: 5px; }
+        .sync-status { font-size: 10px; text-align: center; color: #eee; margin-top: 5px; }
         .trend-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+        .shop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
+        .shop-btn { background: #fff8e1; border: 1px solid #ffe082; padding: 10px; border-radius: 8px; text-align: center; font-size: 12px; cursor: pointer; }
         .btn-group { display: flex; gap: 8px; margin-top: 15px; }
         .btn-secondary { flex: 1; padding: 12px; background: #666; color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
         .btn-outline { flex: 1; padding: 12px; background: white; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; cursor: pointer; }
@@ -21,14 +23,15 @@
 <body>
 <div id="mainApp" style="max-width: 800px; margin: auto; display:none;">
     <div class="card" onclick="adjustBalance()" style="background: #1e3c72; color: white;">
-        <div style="font-size: 12px;">总积分 (点击调整)</div>
+        <div style="font-size: 12px;">总积分 (点击手动调整)</div>
         <div id="totalBalance" style="font-size: 32px; font-weight: bold;">0</div>
-        <div id="syncIndicator" class="sync-status">正在连接云端...</div>
+        <div id="syncIndicator" class="sync-status">连接中...</div>
     </div>
     
-    <div class="card">
-        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">最近7日积分记录</div>
-        <div id="trendArea"></div>
+    <div class="shop-grid">
+        <div class="shop-btn" onclick="redeem(300, 50)">300分<br><b>50元愿望</b></div>
+        <div class="shop-btn" onclick="redeem(600, 100)">600分<br><b>100元愿望</b></div>
+        <div class="shop-btn" onclick="redeem(800, 300)">800分<br><b>300元愿望</b></div>
     </div>
     
     <div class="section-title">🌟 奖励项</div>
@@ -40,106 +43,72 @@
     
     <div class="btn-group">
         <button class="btn-secondary" onclick="location.reload()">🔄 刷新同步</button>
-        <button class="btn-outline" onclick="exportData()">💾 备份到本地</button>
+        <button class="btn-outline" onclick="exportData()">💾 备份数据</button>
     </div>
-    
-    <div style="margin-top:10px;">
-        <button style="width:100%; padding:10px; background:none; border:none; color:#999; font-size:12px; text-decoration:underline;" onclick="clearSyncConfig()">🔐 退出登录 / 更换Token</button>
-    </div>
+    <button style="width:100%; margin-top:10px; background:none; border:none; color:#999; font-size:12px; text-decoration:underline;" onclick="clearSyncConfig()">🔐 退出/更换账号</button>
 </div>
 
 <script>
     const items = [
         {id:'a1', n:"早上按时起床洗漱", p:1}, {id:'a2', n:"认真吃饭不拖拉", p:1}, {id:'a3', n:"洗澡不拖拉", p:1}, {id:'a4', n:"9点半之前睡觉", p:1},
-        {id:'a5', n:"及时主动完成学习任务", p:2},{id:'a6', n:"作业完成迅速", p:2},  {id:'a7', n:"及时整理桌面书包", p:2}, {id:'a8', n:"作业认真思考字迹工整", p:2}, {id:'a9', n:"认真规范做题", p:3},
-        {id:'a10', n:"测试每科95分以上", p:10}, {id:'a11', n:"老师表扬", p:5}, {id:'a12', n:"获得奖状一张", p:5},
-        {id:'a13', n:"整理房间", p:1}, {id:'a14', n:"整理衣服", p:1}, {id:'a15', n:"收碗或者洗衣服等家务", p:2},
+        {id:'a5', n:"及时主动完成学习任务", p:2}, {id:'a6', n:"及时整理桌面书包", p:2}, {id:'a7', n:"作业认真思考字迹工整", p:2}, {id:'a8', n:"认真规范做题", p:3},
+        {id:'a9', n:"测试每科95分以上", p:10}, {id:'a10', n:"老师表扬", p:5}, {id:'a11', n:"获得奖状一张", p:5},
+        {id:'a12', n:"整理房间", p:1}, {id:'a13', n:"整理衣服", p:1}, {id:'a14', n:"收碗放入洗碗机", p:1},
         {id:'b1', n:"起床拖拉迟到", p:-2}, {id:'b2', n:"吃饭拖拉", p:-1}, {id:'b3', n:"不讲卫生", p:-1}, {id:'b4', n:"10点之后睡觉", p:-2},
-        {id:'b5', n:"作业拖拉不专心", p:-2}, {id:'b6', n:"作业字迹潦草", p:-1}, {id:'b7', n:"同样的错题反复出现", p:-1},
+        {id:'b5', n:"作业拖拉不专心", p:-2}, {id:'b6', n:"作业自己潦草", p:-1}, {id:'b7', n:"同样的错题反复出现", p:-1},
         {id:'b8', n:"测试每科80分以下", p:-10}, {id:'b9', n:"被老师告状批评", p:-3},
         {id:'b10', n:"物品混乱不收拾", p:-2}, {id:'b11', n:"说脏话", p:-20}
     ];
 
     let store = {balance:0, clicks:[], daily:{}, weekTotal:0, lastDate:''};
-    const CONFIG = {
-        token: localStorage.getItem('gh_token'),
-        id: localStorage.getItem('gh_id')
-    };
+    const CONFIG = { token: localStorage.getItem('gh_token'), id: localStorage.getItem('gh_id') };
 
     if (!CONFIG.token || !CONFIG.id) {
-        const t = prompt("首次使用，请输入 GitHub Token:");
+        const t = prompt("请输入 GitHub Token:");
         const i = prompt("请输入 Gist ID:");
-        if (t && i) {
-            localStorage.setItem('gh_token', t.trim());
-            localStorage.setItem('gh_id', i.trim());
-            location.reload();
-        }
-    } else {
-        document.getElementById('mainApp').style.display = 'block';
-        loadCloud();
-    }
+        if (t && i) { localStorage.setItem('gh_token', t.trim()); localStorage.setItem('gh_id', i.trim()); location.reload(); }
+    } else { document.getElementById('mainApp').style.display = 'block'; loadCloud(); }
 
     async function loadCloud() {
         try {
-            const res = await fetch(`https://api.github.com/gists/${CONFIG.id}`, {
-                headers: { 'Authorization': `token ${CONFIG.token}` },
-                cache: 'no-store' // 强制获取最新数据，不使用浏览器缓存
-            });
+            const res = await fetch(`https://api.github.com/gists/${CONFIG.id}`, { headers: { 'Authorization': `token ${CONFIG.token}` }, cache: 'no-store' });
             if (res.status === 200) {
                 const data = await res.json();
                 const content = data.files['growth_db.json'].content;
                 if (content && content !== "{}") store = JSON.parse(content);
-                checkNewDay();
-                render();
-                updateSyncStatus("✅ 云端同步成功");
-            } else { throw new Error(); }
-        } catch (e) { updateSyncStatus("❌ 同步失败，请检查配置或网络"); }
+                checkNewDay(); render(); updateSyncStatus("✅ 云端同步成功");
+            }
+        } catch (e) { updateSyncStatus("❌ 同步失败，检查网络"); }
     }
 
     async function saveCloud() {
-        updateSyncStatus("⏳ 正在保存至云端...");
+        updateSyncStatus("⏳ 正在保存...");
         try {
-            const response = await fetch(`https://api.github.com/gists/${CONFIG.id}`, {
+            await fetch(`https://api.github.com/gists/${CONFIG.id}`, {
                 method: 'PATCH',
-                headers: { 
-                    'Authorization': `token ${CONFIG.token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    files: { 'growth_db.json': { content: JSON.stringify(store) } }
-                })
+                headers: { 'Authorization': `token ${CONFIG.token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: { 'growth_db.json': { content: JSON.stringify(store) } } })
             });
-            if (response.ok) {
-                updateSyncStatus("✅ 数据已安全上云");
-                render();
-            } else { throw new Error(); }
-        } catch (e) { 
-            updateSyncStatus("❌ 保存失败，请检查网络");
-            alert("同步失败！请刷新页面重试。");
-        }
+            updateSyncStatus("✅ 已安全上云"); render();
+        } catch (e) { alert("保存失败，请检查网络"); }
     }
 
     function checkNewDay() {
         const today = new Date().toISOString().split('T')[0];
-        if (store.lastDate !== today) {
-            store.clicks = [];
-            store.lastDate = today;
-            saveCloud();
-        }
+        if (store.lastDate !== today) { store.clicks = []; store.lastDate = today; saveCloud(); }
+    }
+
+    function redeem(cost, val) {
+        if (store.balance >= cost) {
+            if (confirm(`确定花费 ${cost} 分兑换 ${val} 元愿望？`)) {
+                store.balance -= cost;
+                saveCloud();
+            }
+        } else { alert("积分不足！"); }
     }
 
     function render() {
         document.getElementById('totalBalance').innerText = store.balance;
-        const trendArea = document.getElementById('trendArea'); trendArea.innerHTML = '';
-        const dates = [];
-        for(let i=0; i<7; i++) {
-            let d = new Date(); d.setDate(d.getDate()-i);
-            dates.push(d.toISOString().split('T')[0]);
-        }
-        dates.forEach(s => {
-            trendArea.innerHTML += `<div class="trend-row"><span>${s}</span><b>${store.daily[s]||0}分</b></div>`;
-        });
-
         const pArea = document.getElementById('plusArea'), mArea = document.getElementById('minusArea');
         pArea.innerHTML = ''; mArea.innerHTML = '';
         items.forEach(item => {
@@ -165,13 +134,10 @@
     }
 
     function updateSyncStatus(msg) { document.getElementById('syncIndicator').innerText = msg; }
-    function clearSyncConfig() { if(confirm("确定要退出登录并清除本地Token吗？")) { localStorage.clear(); location.reload(); } }
-    function liarPenalty() { if(confirm("执行处罚?")) { store.balance -= (store.weekTotal >= 0 ? store.weekTotal : 30); store.weekTotal = 0; store.clicks = []; saveCloud(); } }
+    function clearSyncConfig() { if(confirm("确定退出并清除本地数据？")) { localStorage.clear(); location.reload(); } }
+    function liarPenalty() { if(confirm("执行撒谎处罚?")) { store.balance -= (store.weekTotal >= 0 ? store.weekTotal : 30); store.weekTotal = 0; store.clicks = []; saveCloud(); } }
     function adjustBalance() { if(prompt("管理密码:") === "jerry215") { let v = prompt("新余额:"); if(v) { store.balance = parseInt(v); saveCloud(); } } }
-    function exportData() { 
-        let b = new Blob([JSON.stringify(store)], {type: 'application/json'}); 
-        let a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `backup_${new Date().getTime()}.json`; a.click(); 
-    }
+    function exportData() { let b = new Blob([JSON.stringify(store)], {type: 'application/json'}); let a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `backup_${new Date().getTime()}.json`; a.click(); }
 </script>
 </body>
 </html>
