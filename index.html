@@ -107,8 +107,20 @@
         } else { alert("积分不足！"); }
     }
 
-    function render() {
+        function render() {
         document.getElementById('totalBalance').innerText = store.balance;
+        
+        // --- 这段是专门显示 7 日趋势的，之前漏掉了 ---
+        const trendArea = document.getElementById('trendArea'); 
+        trendArea.innerHTML = '';
+        for(let i=0; i<7; i++) {
+            let d = new Date(); 
+            d.setDate(d.getDate()-i);
+            let s = d.toISOString().split('T')[0];
+            trendArea.innerHTML += `<div class="trend-row"><span>${s}</span><b>${store.daily[s]||0}分</b></div>`;
+        }
+        // ----------------------------------------
+
         const pArea = document.getElementById('plusArea'), mArea = document.getElementById('minusArea');
         pArea.innerHTML = ''; mArea.innerHTML = '';
         items.forEach(item => {
@@ -132,6 +144,7 @@
             (isPlus ? pArea : mArea).appendChild(div);
         });
     }
+
 
     function updateSyncStatus(msg) { document.getElementById('syncIndicator').innerText = msg; }
     function clearSyncConfig() { if(confirm("确定退出并清除本地数据？")) { localStorage.clear(); location.reload(); } }
